@@ -1,9 +1,10 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import asyncio
 import anthropic
 
-client = anthropic.Anthropic()
+client = anthropic.AsyncAnthropic()
 
 catch_tool = {
     "name": "catch_event",
@@ -24,13 +25,12 @@ catch_tool = {
         "required": ["event_name", "date"]
     }
 }
-event_info = """
-Sunset Rooftop Yoga + Chill 🧘‍♀️🌅
-this Saturday (Aug 2) come thru around 6pm, we'll go till sunset 8pm
-@ The Nest rooftop, 445 Grand Ave, 4th floor
-$25 early bird / $35 at the door
-DM to reserve or grab tickets → linktr.ee/nestyoga
-"""
+event_posts = [
+    """Sunset Rooftop Yoga + Chill 🧘‍♀️ Sat Aug 2, 6pm @ The Nest rooftop, 445 Grand Ave. $25 early bird / $35 door. linktr.ee/nestyoga""",
+    """📚 Indie Book Swap! Sunday Aug 3, 2-5pm at Grounded Cafe (12 Oak St). Free entry, bring a book take a book ☕""",
+    """LATE NIGHT RAMEN POP-UP 🍜 Fri Aug 1 from 9pm till we sell out. Miso Bar, 88 Kent Ave. $18 a bowl, cash only""",
+    ""
+]
 def clean_price(raw):
     if isinstance(raw, (int, float)):
         return raw
@@ -39,10 +39,10 @@ def clean_price(raw):
     
     return float(cleaned)
 
-def analyze(event):
+async def analyze(event):
     if not event or not event.strip():
         raise ValueError("Event information is empty or invalid.")
-    response = client.messages.create(
+    response = await client.messages.create(
     model="claude-sonnet-4-5",
     max_tokens=500,
     tools=[catch_tool],
@@ -53,21 +53,29 @@ def analyze(event):
     data = response.content[0].input
     return data
 
-def main():
+async def main():
     try:
-        event = analyze(event_info)
-        if "ticket_tiers" in event:
-            for tier in event["ticket_tiers"]:
-                tier["price"] = clean_price(tier["price"])
+        events = await asyncio.gather(*(analyze(event) for event in event_posts), return_exceptions=True)
+        for event in events:
+            if (event is None) or (isinstance(event, Exception)):
+                print(f"Error occurred while processing event: {event}")
+                continue
+            if "ticket_tiers" in event:
+                for tier in event["ticket_tiers"]:
+                    tier["price"] = clean_price(tier["price"])
+            for key, value in event.items():
+                if isinstance(value, list):
+                    print(f"{key}:")
+                    for item in value:
+                        print(f"  - {item}")
+                else:
+                    print(key, ":", value)
+            print("\n")
 
-        for key, value in event.items():
-            if isinstance(value, list):
-                print(f"{key}:")
-                for item in value:
-                    print(f"  - {item}")
-            else:print(key, ":", value)
     except ValueError as e:
         print(f"Error occurred: {e}")
     except anthropic.APIError as e:
         print(f"API call failed: {e}")
-main()
+
+
+asyncio.run(main())
