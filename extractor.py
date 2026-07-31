@@ -31,6 +31,17 @@ event_posts = [
     """LATE NIGHT RAMEN POP-UP 🍜 Fri Aug 1 from 9pm till we sell out. Miso Bar, 88 Kent Ave. $18 a bowl, cash only""",
     ""
 ]
+
+
+async def extract_and_clean(text):
+    if not text or not text.strip():
+        raise ValueError("Event information is empty or invalid.")
+    response = await analyze(text)
+    if "ticket_tiers" in response:
+        for tier in response["ticket_tiers"]:
+            tier["price"] = clean_price(tier["price"])
+    return response
+
 def clean_price(raw):
     if isinstance(raw, (int, float)):
         return raw
@@ -40,15 +51,14 @@ def clean_price(raw):
     return float(cleaned)
 
 async def analyze(event):
-    if not event or not event.strip():
-        raise ValueError("Event information is empty or invalid.")
     response = await client.messages.create(
     model="claude-sonnet-4-5",
     max_tokens=500,
     tools=[catch_tool],
     tool_choice={"type": "tool", "name": "catch_event"},
     messages=[
-        {"role": "user", "content": f"Extract event information from this posts. If a field is not mentioned in the post, omit it directly, do not guess or use placeholder.\n\nPost:\n{event}"}
+        {"role": "user", "content": f"Extract event information from this posts. For the date field, output only the month and day (e.g. Aug 2). Do not include the weekday or year. If a field is not mentioned in the post, omit it directly, do not guess or use placeholder. \n\nPost:\n{event}"}
+        
     ])
     data = response.content[0].input
     return data
@@ -78,4 +88,5 @@ async def main():
         print(f"API call failed: {e}")
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
