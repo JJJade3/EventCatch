@@ -1,8 +1,18 @@
+import time
+
 from dotenv import load_dotenv
 load_dotenv()
 
 import asyncio
 import anthropic
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s | %(levelname)s | %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 
 client = anthropic.AsyncAnthropic()
 
@@ -36,7 +46,10 @@ event_posts = [
 async def extract_and_clean(text):
     if not text or not text.strip():
         raise ValueError("Event information is empty or invalid.")
+    start = time.time()      
     response = await analyze(text)
+    elapsed = time.time() - start   
+    logger.info(f"Time taken to analyze event: {elapsed:.2f} seconds")
     if "ticket_tiers" in response:
         for tier in response["ticket_tiers"]:
             tier["price"] = clean_price(tier["price"])
@@ -60,6 +73,7 @@ async def analyze(event):
         {"role": "user", "content": f"Extract event information from this posts. For the date field, output only the month and day (e.g. Aug 2). Do not include the weekday or year. If a field is not mentioned in the post, omit it directly, do not guess or use placeholder. \n\nPost:\n{event}"}
         
     ])
+    logger.info(f"Tokens - input: {response.usage.input_tokens}, output: {response.usage.output_tokens}")
     data = response.content[0].input
     return data
 
