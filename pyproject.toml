@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eventcatch"
+version = "0.1.0"
+description = "Turns informal social-media event posts into structured event data using Claude tool-use."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi==0.124.4",
+    "uvicorn==0.33.0",
+    "anthropic==0.72.0",
+    "pydantic==2.10.6",
+    "pydantic-settings==2.7.1",
+    "python-dotenv==1.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.4",
+    "pytest-asyncio==0.25.2",
+    "httpx==0.28.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
